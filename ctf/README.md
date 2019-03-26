@@ -22,8 +22,9 @@
 - [爆破](https://fanda.cloud/2019/03/13/angr%E5%AD%A6%E4%B9%A0-%E7%AC%AC%E4%BA%94%E8%8A%82%E7%88%86%E7%A0%B4/)
 > 用angr这种符号执行工具同样可以爆破
 - [优化](https://github.com/fangdada/learning-angr/tree/master/ctf/%E4%BC%98%E5%8C%96)
-
 > 当程序比较复杂或者angr执行异常慢怎么办
+- [反Anti](https://github.com/fangdada/learning-angr/tree/master/ctf/%E5%8F%8Danti)
+> 绕过程序中的anti-debug或者anti-run
 
 - ...
 
