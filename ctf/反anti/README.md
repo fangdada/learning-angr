@@ -2,7 +2,7 @@
 
 &nbsp;&nbsp;&nbsp;&nbsp;<font size=2>今天就来讲讲一些anti-debug或者anti-run题，并且介绍一个非常简单的用angr绕过的办法——直接跳过。至于hook反调试函数的例子以后再更新，题目在文件里可以下载，那么用IDA打开看看可以看到是一长串判断正确的反汇编CFG图：</font></br>
 
-![IDA CFG图]()
+![IDA CFG图](https://raw.githubusercontent.com/fangdada/learning-angr/master/ctf/%E5%8F%8Danti/IDA_CFG.png)
 
 &nbsp;&nbsp;&nbsp;&nbsp;<font size=2>虽然程序也不算特别长，但是拿头逆的话非常累人，更何况这个还是anti-run的，用gdb调试的话需要不断的patch，非常麻烦，所以这里又需要用到我们的angr符号执行来解决了，先来看看main函数开头的反运行代码：</font></br>
 
