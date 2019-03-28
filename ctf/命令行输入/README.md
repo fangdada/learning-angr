@@ -73,3 +73,134 @@ print solution.strip('\x00')
 # ais3{I_tak3_g00d_n0t3s}
 ```
 
+</br>
+
+# asisctffinals2015_fake
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>这题相比上面那个稍微复杂一些，但是基本一样，直接来看IDA main函数反编译：</font></br>
+
+```C
+__int64 __fastcall main(signed int a1, char **a2, char **a3)
+{
+  __int64 v3; // r8
+  __int64 v5; // [rsp+0h] [rbp-38h]
+  __int64 v6; // [rsp+8h] [rbp-30h]
+  __int64 v7; // [rsp+10h] [rbp-28h]
+  __int64 v8; // [rsp+18h] [rbp-20h]
+  __int64 v9; // [rsp+20h] [rbp-18h]
+
+  v3 = 0LL;
+  if ( a1 > 1 )
+    v3 = strtol(a2[1], 0LL, 10);
+  v5 = 0x3CC6C7B7 * v3;
+  v6 = 0x981DDEC9AB2D9LL
+     * ((v3 >> 19)
+      - 2837
+      * (((signed __int64)((unsigned __int128)(6658253765061184651LL * (signed __int128)(v3 >> 19)) >> 64) >> 10)
+       - (v3 >> 63)))
+     * ((v3 >> 19)
+      - 35
+      * (((signed __int64)((unsigned __int128)(1054099661354831521LL * (signed __int128)(v3 >> 19)) >> 64) >> 1)
+       - (v3 >> 63)))
+     * ((v3 >> 19)
+      - 33
+      * (((signed __int64)((unsigned __int128)(1117984489315730401LL * (signed __int128)(v3 >> 19)) >> 64) >> 1)
+       - (v3 >> 63)));
+  v7 = ((v3 >> 19)
+      - 9643
+      * (((signed __int64)((unsigned __int128)(1958878557656183849LL * (signed __int128)(v3 >> 19)) >> 64) >> 10)
+       - (v3 >> 63)))
+     * 5785690976857702LL
+     * ((v3 >> 19)
+      - 167
+      * (((signed __int64)((unsigned __int128)(7069410902499468883LL * (signed __int128)(v3 >> 19)) >> 64) >> 6)
+       - (v3 >> 63)));
+  v8 = ((v3 >> 19)
+      - 257
+      * (((signed __int64)((unsigned __int128)(9187483429707480961LL * (signed __int128)(v3 >> 19)) >> 64) >> 7)
+       - (v3 >> 63)))
+     * 668176625215826LL
+     * ((v3 >> 19)
+      - 55
+      * (((signed __int64)((unsigned __int128)(5366325548715505925LL * (signed __int128)(v3 >> 19)) >> 64) >> 4)
+       - (v3 >> 63)));
+  v9 = ((v3 >> 19)
+      - 48271
+      * (((signed __int64)((unsigned __int128)(1565284823722614477LL * (signed __int128)(v3 >> 19)) >> 64) >> 12)
+       - (v3 >> 63)))
+     * 2503371776094LL
+     * ((v3 >> 19)
+      - 23
+      * (((signed __int64)((v3 >> 19) + ((unsigned __int128)(-5614226457215950491LL * (signed __int128)(v3 >> 19)) >> 64)) >> 4)
+       - (v3 >> 63)));
+  puts((const char *)&v5);
+  return 0LL;
+}
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>程序逻辑一目了然，只是单纯的命令行参数输入一串数字，然后经过一系列运算后就输出了，根据题目描述flag应当是"ASIS{xxxxx...xxxxx}"格式的，所以我们要做的就是：</font></br>
+
+- 加载程序到strcol函数后，设置函数返回值rax为符号变量；
+- 使用simulation manager的explore模拟执行完所有运算；
+- 对运算后的符号变量添加约束；
+- 求解得到flag。
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>所以还是比较好理解的，直接放脚本了：</font></br>
+
+```shell
+import angr
+import binascii
+
+def main():
+    p = angr.Project("fake", auto_load_libs=False)
+
+    state = p.factory.blank_state(addr=0x4004AC)
+    inp = state.solver.BVS('inp', 8*8)
+    state.regs.rax = inp
+
+    simgr= p.factory.simulation_manager(state)
+    simgr.explore(find=0x400684)
+    found = simgr.found[0]
+
+    # We know the flag starts with "ASIS{"
+    flag_addr = found.regs.rdi
+    found.add_constraints(found.memory.load(flag_addr, 5) == int(binascii.hexlify(b"ASIS{"), 16))
+
+    # More constraints: the whole flag should be printable
+    flag = found.memory.load(flag_addr, 40)
+    for i in range(5, 5+32):
+        cond_0 = flag.get_byte(i) >= ord('0')
+        cond_1 = flag.get_byte(i) <= ord('9')
+        cond_2 = flag.get_byte(i) >= ord('a')
+        cond_3 = flag.get_byte(i) <= ord('f')
+        cond_4 = found.solver.And(cond_0, cond_1)
+        cond_5 = found.solver.And(cond_2, cond_3)
+        found.add_constraints(found.solver.Or(cond_4, cond_5))
+
+    # And it ends with a '}'
+    found.add_constraints(flag.get_byte(32+5) == ord('}'))
+
+    # In fact, putting less constraints (for example, only constraining the first
+    # several characters) is enough to get the final flag, and Z3 runs much faster
+    # if there are less constraints. I added all constraints just to stay on the
+    # safe side.
+
+    flag_str = found.solver.eval(flag, cast_to=bytes)
+    return flag_str.rstrip(b'\0')
+
+    #print("The number to input: ", found.solver.eval(inp))
+    #print("Flag:", flag)
+
+    # The number to input:  25313971399
+    # Flag: ASIS{f5f7af556bd6973bd6f2687280a243d9}
+
+def test():
+    a = main()
+    assert a == b'ASIS{f5f7af556bd6973bd6f2687280a243d9}'
+
+if __name__ == '__main__':
+    import logging
+    logging.getLogger('angr.sim_manager').setLevel(logging.DEBUG)
+    print(main())
+```
+
