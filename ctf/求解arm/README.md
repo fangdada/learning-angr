@@ -2,7 +2,7 @@
 
 &nbsp;&nbsp;&nbsp;&nbsp;<font size=2>这次就来讲讲arm题吧，这题是Android arm（32位）下的一题base32题，要求输入一串正确的base32值，然后被程序decode之后比较是否正确。有IDA在其实也用不着很精通arm指令集，得亏了强大的F5。</font></br>
 
-&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>因为我懒得再去写常规解了，所以直接只写这一个angr解，环境搭建过程另写了一篇文章：[Android ELF编写与调试环境搭建]()，里面总结了我摸索得到的经验和一些坑。IDA打开之后直接来到main函数一个F5:</font></br>
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>因为我懒得再去写常规解了，所以直接只写这一个angr解，环境搭建过程另写了一篇文章：[Android ELF编写与调试环境搭建](https://github.com/fangdada/learning-angr/blob/master/ctf/%E6%B1%82%E8%A7%A3arm/build_envir.md)，里面总结了我摸索得到的经验和一些坑。IDA打开之后直接来到main函数一个F5:</font></br>
 
 ```C
 int __cdecl main(int argc, const char **argv, const char **envp)
@@ -76,6 +76,8 @@ import claripy
 import base64
 
 load_options = {}
+# Android NDK library path:
+# load_options['ld_path'] = ['/Users/berndt/Tools/android-ndk-r10e/platforms/android-21/arch-arm/usr/lib']
 
 # 加载题目到调用verify函数前
 b = angr.Project("./validate", load_options = load_options)

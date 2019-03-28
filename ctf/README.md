@@ -25,6 +25,8 @@
 > 当程序比较复杂或者angr执行异常慢怎么办
 - [反Anti](https://github.com/fangdada/learning-angr/tree/master/ctf/%E5%8F%8Danti)
 > 绕过程序中的anti-debug或者anti-run
+- [求解arm](https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%B1%82%E8%A7%A3arm)
+> 遇到arm架构的ELF程序如何求解
 
 - ...
 
