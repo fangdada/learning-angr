@@ -27,6 +27,8 @@
 > 绕过程序中的anti-debug或者anti-run
 - [求解arm](https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%B1%82%E8%A7%A3arm)
 > 遇到arm架构的ELF程序如何求解
+- [文件输入](https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%96%87%E4%BB%B6%E8%BE%93%E5%85%A5)
+> 使用文件作为输入的求解题也不少
 
 - ...
 
