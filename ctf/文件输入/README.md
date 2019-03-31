@@ -269,7 +269,32 @@ LABEL_41:
 }
 ```
 
-&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>程序的逻辑如下：</font></br>
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>其中fread后的if里的file_size可以用z3-solver求解得到：</font></br>
+
+```python
+In [2]: from z3 import *
+
+In [3]: s=Solver()
+
+In [4]: file_size=BitVec("file_size",32)
+
+In [5]: s.add(-45235 * file_size * file_size * file_size * file_size
+   ...:            + -1256 * file_size * file_size * file_size
+   ...:            + 14392 * file_size * file_size
+   ...:            + -59762 * file_size
+   ...:            - 1949670109068
+   ...:            + 44242 * file_size * file_size * file_size * file_size * file_size==0)
+
+In [6]: s.check()
+Out[6]: sat
+
+In [7]: s.model()
+Out[7]: [file_size = 34]
+
+In [8]:
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>所以程序的逻辑如下：</font></br>
 
 - 打开一个名称为"\_a\\nb\\tc\_"的文件；
 - 验证文件大小为34个字节；
