@@ -41,7 +41,7 @@ for(char* ptr=buf;*ptr;ptr++)
 - patch掉这些求解无用代码；
 - 从使用Sim_Manager的run()方法改为explore并指定find和avoid地址；
 - 减小符号变量的复杂度，也就是减小AST的深度（用于比较复杂的程序或者加密）；
-- **（以下为新更新内容）**使用blank_state()只执行求解相关代码；
+- （**以下为新更新内容**）使用blank_state()只执行求解相关代码；
 - 分段执行代码避免路径爆炸；
 - hook函数。
 
