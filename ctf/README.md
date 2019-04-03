@@ -29,6 +29,8 @@
 > 遇到arm架构的ELF程序如何求解
 - [文件输入](https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%96%87%E4%BB%B6%E8%BE%93%E5%85%A5)
 > 使用文件作为输入的求解题也不少
+- [hook函数](https://github.com/fangdada/learning-angr/tree/master/ctf/hook%E5%87%BD%E6%95%B0)
+> 利用一个简单的二进制炸弹学习angr如何hook函数
 
 - ...
 
