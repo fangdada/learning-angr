@@ -40,7 +40,10 @@ for(char* ptr=buf;*ptr;ptr++)
 
 - patch掉这些求解无用代码；
 - 从使用Sim_Manager的run()方法改为explore并指定find和avoid地址；
-- 减小符号变量的复杂度，也就是减小AST的深度。（用于比较复杂的程序或者加密）
+- 减小符号变量的复杂度，也就是减小AST的深度（用于比较复杂的程序或者加密）；
+- **（以下为新更新内容）**使用blank_state()只执行求解相关代码；
+- 分段执行代码避免路径爆炸；
+- hook函数。
 
 &nbsp;&nbsp;&nbsp;&nbsp;<font size=2>那么我们一个个讲起吧，先从第一个开始，如何patch这些代码呢？直接修改二进制程序的话太过于麻烦了，我们直接在angr装载的内存空间里修改就行了，用state.memory.store()就可以做到，如下代码：</font></br>
 
@@ -284,5 +287,282 @@ def test():
 
 if __name__ == '__main__':
     print(main())
+```
+
+***
+
+**更新**
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>如何使用blank_state()优化时间复杂呢？假如有以下代码需要探索（n1为全局变量无需操作）：</font></br>
+
+```C
+unsigned __int64 __fastcall secret_phase(__int64 a1)
+{
+  const char *v1; // rdi
+  unsigned int v2; // ebx
+
+  v1 = (const char *)read_line(a1);
+  v2 = strtol(v1, 0LL, 10);
+  if ( v2 - 1 > 0x3E8 )
+    explode_bomb(v1, 0LL);
+  if ( (unsigned int)fun7(&n1, v2) != 2 )
+    explode_bomb(&n1, v2);
+  puts("Wow! You've defused the secret stage!");
+  return phase_defused();
+}
+```
+
+```assembly
+.text:0000000000401242                 public secret_phase
+.text:0000000000401242 secret_phase    proc near               ; CODE XREF: phase_defused+6C↓p
+.text:0000000000401242 ; __unwind {
+.text:0000000000401242                 push    rbx
+.text:0000000000401243                 call    read_line
+.text:0000000000401248                 mov     edx, 0Ah        ; base
+.text:000000000040124D                 mov     esi, 0          ; endptr
+.text:0000000000401252                 mov     rdi, rax        ; nptr
+.text:0000000000401255                 call    _strtol
+.text:000000000040125A                 mov     rbx, rax
+.text:000000000040125D                 lea     eax, [rax-1]
+.text:0000000000401260                 cmp     eax, 3E8h
+.text:0000000000401265                 jbe     short loc_40126C
+.text:0000000000401267                 call    explode_bomb
+.text:000000000040126C ; ---------------------------------------------------------------------------
+.text:000000000040126C
+.text:000000000040126C loc_40126C:                             ; CODE XREF: secret_phase+23↑j
+.text:000000000040126C                 mov     esi, ebx
+.text:000000000040126E                 mov     edi, offset n1
+.text:0000000000401273                 call    fun7
+.text:0000000000401278                 cmp     eax, 2
+.text:000000000040127B                 jz      short loc_401282
+.text:000000000040127D                 call    explode_bomb
+.text:0000000000401282 ; ---------------------------------------------------------------------------
+.text:0000000000401282
+.text:0000000000401282 loc_401282:                             ; CODE XREF: secret_phase+39↑j
+.text:0000000000401282                 mov     edi, offset aWowYouVeDefuse ; "Wow! You've defused the secret stage!"
+.text:0000000000401287                 call    _puts
+.text:000000000040128C                 call    phase_defused
+.text:0000000000401291                 pop     rbx
+.text:0000000000401292                 retn
+.text:0000000000401292 ; } // starts at 401242
+.text:0000000000401292 secret_phase    endp
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>我们可以直接跳过前面一大段代码从strtol后的返回值处插入符号变量进行执行，只需要在fun7函数的调用处将rsi设置为我们的符号变量地址，相应实现如下：</font></br>
+
+```python
+import angr
+import claripy
+
+start=0x40125A
+end=0x401282
+avoid=0x40143a
+
+p=angr.Project('./bomb')
+state=p.factory.blank_state(addr=start)
+
+flag=claripy.BVS("flag",64,explicit_name=True)
+state.regs.rax=flag
+state.add_constraints(flag-1<=0x3E8)
+
+sm=p.factory.simulation_manager(state)
+sm.explore(find=end,avoid=avoid)
+
+found=sm.found[0]
+print(found.solver.eval(flag))
+# cost:1.2971761226654053
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>以hook函数的方法来做就是这样：</font></br>
+
+```python
+class readline_hook(angr.SimProcedure):
+    def run(self):
+        pass
+
+class strtol_hook(angr.SimProcedure):
+    def run(self, str, end, base):
+        return self.state.solver.BVS("flag", 64, explicit_name=True)
+
+def solve_secret():
+    start = 0x401242
+    find = 0x401282
+    avoid = (0x40127d, 0x401267,)
+    readline = 0x40149e
+    strtol = 0x400bd0
+
+    p = angr.Project("./bomb", auto_load_libs=False)
+    p.hook(readline, readline_hook())
+    p.hook(strtol, strtol_hook())
+    state = p.factory.blank_state(addr=start, remove_options={angr.options.LAZY_SOLVES})
+    flag = claripy.BVS("flag", 64, explicit_name=True)
+    state.add_constraints(flag -1 <= 0x3e8)
+    sm = p.factory.simulation_manager(state)
+    sm.explore(find=find, avoid=avoid)
+    ### flag found
+    found = sm.found[0]
+    flag = found.solver.BVS("flag", 64, explicit_name="True")
+    return str(found.solver.eval(flag))
+  # cost:1.3441410064697266
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>上面就是利用blank_state()和hook函数优化的时间耗费数，如果用最简单的explore直接探索的话，结果如下：</font></br>
+
+```python
+import angr
+import time
+
+before=time.time()
+p=angr.Project('./bomb')
+state=p.factory.blank_state(addr=0x401242)
+
+sm=p.factory.simulation_manager(state)
+sm.explore(find=0x401282,avoid=(0x40127d,0x401267,))
+after=time.time()
+
+found=sm.found[0]
+
+found.add_constraints(found.regs.rbx-1<=0x3e8)
+print(found.solver.eval(found.regs.rbx))
+print("cost:"+str(after-before))
+
+# Out[6]: <SimulationManager with 349 active, 1 found, 97 avoid>
+# cost:116.71986317634583
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>探索路径结果竟达到了超过400条！产生的时间消耗竟接近120s！所以优化还是很有必要的，不要无脑explore 23333。</font></br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>路径分段的优化其实是非常简单的，思路就是把一块代码分为两段执行，先探索第一段，然后取其found路径，在其基础上再次进行explore，可以避免很多一级无效路径产生的二级无效路径（只是我自己这么称呼2333），这样就能减少需要探索的路径进而减少时间复杂度。代码如下：</font></br>
+
+```C
+__int64 __fastcall phase_6(__int64 a1)
+{
+  int *v1; // r13
+  signed int v2; // er12
+  signed int v3; // ebx
+  char *v4; // rax
+  unsigned __int64 v5; // rsi
+  _QWORD *v6; // rdx
+  signed int v7; // eax
+  int v8; // ecx
+  __int64 v9; // rbx
+  char *v10; // rax
+  __int64 i; // rcx
+  __int64 v12; // rdx
+  signed int v13; // ebp
+  __int64 result; // rax
+  int v15[6]; // [rsp+0h] [rbp-78h]
+  char v16; // [rsp+18h] [rbp-60h]
+  __int64 v17; // [rsp+20h] [rbp-58h]
+  char v18; // [rsp+28h] [rbp-50h]
+  char v19; // [rsp+50h] [rbp-28h]
+
+  v1 = v15;
+  read_six_numbers(a1, v15);
+  v2 = 0;
+  while ( 1 )
+  {
+    if ( (unsigned int)(*v1 - 1) > 5 )
+      explode_bomb(a1, v15);
+    if ( ++v2 == 6 )
+      break;
+    v3 = v2;
+    do
+    {
+      if ( *v1 == v15[v3] )
+        explode_bomb(a1, v15);
+      ++v3;
+    }
+    while ( v3 <= 5 );
+    ++v1;
+  }
+  v4 = (char *)v15;
+  do
+  {
+    *(_DWORD *)v4 = 7 - *(_DWORD *)v4;
+    v4 += 4;
+  }
+  while ( v4 != &v16 );
+  // 第一次探索到这
+  v5 = 0LL;
+  do
+  {
+    v8 = v15[v5 / 4];
+    if ( v8 <= 1 )
+    {
+      v6 = &node1;
+    }
+    else
+    {
+      v7 = 1;
+      v6 = &node1;
+      do
+      {
+        v6 = (_QWORD *)v6[1];
+        ++v7;
+      }
+      while ( v7 != v8 );
+    }
+    *(__int64 *)((char *)&v17 + 2 * v5) = (__int64)v6;
+    v5 += 4LL;
+  }
+  while ( v5 != 24 );
+  v9 = v17;
+  v10 = &v18;
+  for ( i = v17; ; i = v12 )
+  {
+    v12 = *(_QWORD *)v10;
+    *(_QWORD *)(i + 8) = *(_QWORD *)v10;
+    v10 += 8;
+    if ( v10 == &v19 )
+      break;
+  }
+  *(_QWORD *)(v12 + 8) = 0LL;
+  v13 = 5;
+  do
+  {
+    result = **(unsigned int **)(v9 + 8);
+    if ( *(_DWORD *)v9 < (signed int)result )
+      explode_bomb(a1, &v19);
+    v9 = *(_QWORD *)(v9 + 8);
+    --v13;
+  }
+  while ( v13 );
+  return result;
+}
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>可以先用angr探索到注释处，然后取其found，然后探索到末尾，代码如下：</font></br>
+
+```python
+def solve_flag_6():
+    start = 0x4010f4
+    read_num = 0x40145c
+
+    #split the function to two parts to avoid path explosion
+    find1 = 0x401188
+    find2 = 0x4011f7
+
+    avoid = 0x40143A
+    p = angr.Project("./bomb", auto_load_libs=False)
+    p.hook(read_num, read_6_ints())
+    state = p.factory.blank_state(addr=start, remove_options={angr.options.LAZY_SOLVES})
+    sm = p.factory.simulation_manager(state)
+
+    # enumerate all possible paths in the first part
+    while len(sm.active) > 0:
+        sm.explore(find=find1, avoid=avoid)
+
+    # dive further to part2
+    found_list = sm.found
+    for found in found_list:
+        sm = p.factory.simulation_manager(found)
+        sm.explore(find=find2, avoid=avoid)
+        if len(sm.found) > 0:
+            found = sm.found[0]
+            break
+
+    answer = [found.solver.eval(x) for x in read_6_ints.answer_ints]
+    return ' '.join(map(str, answer))
 ```
 
