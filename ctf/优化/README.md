@@ -570,7 +570,7 @@ def solve_flag_6():
 
 # C++优化
 
-> 相应文件可在[angr学习 第十一节求解C++](<https://fanda.cloud/2019/04/09/angr%E5%AD%A6%E4%B9%A0-%E7%AC%AC%E5%8D%81%E4%B8%80%E8%8A%82%E6%B1%82%E8%A7%A3c/>)里下载
+> 相应文件可在[求解C++](<https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%B1%82%E8%A7%A3C%2B%2B/>)里下载
 
 ##csaw_wyvern
 
