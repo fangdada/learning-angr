@@ -1,5 +1,7 @@
 # bomb
 
+## 常规hook
+
 &nbsp;&nbsp;&nbsp;&nbsp;<font size=2>这是一个二进制炸弹，一共有6个关卡加一个隐藏关卡，我们在这里用angr一层一层解，设计到了hook，堆栈操作，CFG，获取函数符号等。</font></br>
 
 &nbsp;&nbsp;&nbsp;&nbsp;<font size=2>那么我们就从main函数开始看起：</font></br>
@@ -630,5 +632,331 @@ But finding it and solving it are quite different...
 Wow! You've defused the secret stage!
 Congratulations! You've defused the bomb!
 ➜  temp 
+```
+
+***
+
+# counter
+
+## UserHook
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>其实相比上面那个炸弹，这题更像是正文2333。这题用IDA打开可以看到是经过混淆的，反汇编指令达到了六十多万条，拿头逆当然不可能（虽然也不是不可以，因为大多都是垃圾代码），花那么多时间去做这个太可惜了，不如用来学习angr。</font></br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>除去main函数开头的一大堆垃圾代码，从0x43E099开始看（**可以给argv[1]下硬件断点得到从这里开始取出了我们的输入进行运算比较，奥对了0x43d2c6才是第一次比较输入的位置，但是这是直接比较的没有运算，比较简单所以跳过了**）,然后稍作分析就可以得出：程序对我们的输入每次取出一个字节进行各种计算，其中运算可能用到前一个输入的字节，反汇编如下：</font></br>
+
+```assembly
+.text:000000000043E099 ; ---------------------------------------------------------------------------
+.text:000000000043E099
+.text:000000000043E099 loc_43E099:                             ; CODE XREF: main+324D4↑j
+.text:000000000043E099                 mov     eax, 8CF3CB57h
+.text:000000000043E09E                 mov     ecx, 5F18CA7Ah
+.text:000000000043E0A3                 mov     edx, 0FFFFFFFFh
+.text:000000000043E0A8                 mov     rsi, [rbp+var_150]
+.text:000000000043E0AF                 mov     rsi, [rsi]
+.text:000000000043E0B2                 mov     rsi, [rsi+8]			; argv[1]
+.text:000000000043E0B6                 movsx   edi, byte ptr [rsi+1]	; edi=(char)input[1]
+.text:000000000043E0BA                 mov     r8d, edi
+.text:000000000043E0BD                 xor     r8d, 0FFFFFFFFh
+.text:000000000043E0C4                 and     r8d, 0CD378195h
+.text:000000000043E0CB                 mov     r9d, edx
+.text:000000000043E0CE                 xor     r9d, 0CD378195h
+.text:000000000043E0D5                 and     edi, r9d
+.text:000000000043E0D8                 mov     r10d, edx
+.text:000000000043E0DB                 xor     r10d, 0BDh
+.text:000000000043E0E2                 and     r10d, 0CD378195h
+.text:000000000043E0E9                 and     r9d, 0BDh
+.text:000000000043E0F0                 or      r8d, edi
+.text:000000000043E0F3                 or      r10d, r9d
+.text:000000000043E0F6                 xor     r8d, r10d
+.text:000000000043E0F9                 mov     edi, edx
+.text:000000000043E0FB                 xor     edi, 0FFh
+.text:000000000043E101                 mov     r9d, r8d
+.text:000000000043E104                 xor     r9d, edi
+.text:000000000043E107                 and     r9d, r8d
+.text:000000000043E10A                 mov     rsi, [rbp+var_150]
+.text:000000000043E111                 mov     rsi, [rsi]
+.text:000000000043E114                 mov     rsi, [rsi+8]
+.text:000000000043E118                 movsx   edi, byte ptr [rsi]	; edi=(char)input[0]
+.text:000000000043E11B                 sub     r9d, 8B5CB5DFh
+.text:000000000043E122                 add     r9d, edi
+.text:000000000043E125                 add     r9d, 8B5CB5DFh
+.text:000000000043E12C                 xor     r9d, 0FFFFFFFFh
+.text:000000000043E133                 mov     edi, edx
+.text:000000000043E135                 xor     edi, 0FFh
+.text:000000000043E13B                 xor     edx, 13E1F17Dh
+.text:000000000043E141                 or      r9d, edi
+.text:000000000043E144                 or      edx, 13E1F17Dh
+.text:000000000043E14A                 xor     r9d, 0FFFFFFFFh
+.text:000000000043E151                 and     r9d, edx
+.text:000000000043E154                 mov     r11b, r9b
+.text:000000000043E157                 mov     rsi, [rbp+var_148]
+.text:000000000043E15E                 mov     [rsi], r11b
+.text:000000000043E161                 mov     rsi, [rbp+var_148]
+.text:000000000043E168                 movsx   edx, byte ptr [rsi]
+.text:000000000043E16B                 cmp     edx, 1Ch				; 比较在这里
+.text:000000000043E171                 setz    r11b
+.text:000000000043E175                 and     r11b, 1
+.text:000000000043E179                 mov     [rbp+var_4B], r11b
+.text:000000000043E17D                 mov     edx, ds:dword_6A3B7C
+.text:000000000043E184                 mov     edi, ds:dword_6A3B80
+.text:000000000043E18B                 mov     r8d, edx
+.text:000000000043E18E                 sub     r8d, 0F47F12B6h
+.text:000000000043E195                 sub     r8d, 1
+.text:000000000043E19C                 add     r8d, 0F47F12B6h
+.text:000000000043E1A3                 imul    edx, r8d
+.text:000000000043E1A7                 and     edx, 1
+.text:000000000043E1AD                 cmp     edx, 0
+.text:000000000043E1B3                 setz    r11b
+.text:000000000043E1B7                 cmp     edi, 0Ah
+.text:000000000043E1BD                 setl    bl
+.text:000000000043E1C0                 mov     r14b, r11b
+.text:000000000043E1C3                 and     r14b, bl
+.text:000000000043E1C6                 xor     r11b, bl
+.text:000000000043E1C9                 or      r14b, r11b
+.text:000000000043E1CC                 test    r14b, 1
+.text:000000000043E1D0                 cmovnz  eax, ecx
+.text:000000000043E1D3                 mov     [rbp+var_160], eax
+.text:000000000043E1D9                 jmp     loc_4A373E
+.text:000000000043E1DE ; ---------------------------------------------------------------------------
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>经过前面那题bomb的学习我们都知道hook经常用来hook输入的函数，比如scanf等，那么这里我们的输入是命令行，不是函数，这可怎么hook呢？这里就要引出另一个hook办法：`angr.procedures.stubs.UserHook.UserHook`。其定义angr/procedures/stubs/userhook.py如下：</font></br>
+
+```python
+import angr
+
+class UserHook(angr.SimProcedure):
+    NO_RET = True
+
+    # pylint: disable=arguments-differ
+    def run(self, user_func=None, length=None):
+        result = user_func(self.state)
+        if result is None:
+            jumpkind = 'Ijk_NoHook' if length == 0 else 'Ijk_Boring'
+            self.successors.add_successor(self.state, self.state.addr+length, self.state.solver.true, jumpkind)
+        else:
+            for state in result:
+                self.successors.add_successor(state, state.addr, state.scratch.guard, state.history.jumpkind)
+
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>其内部也定义了run函数，有两个参数，user_func就是我们的自定义函数，length就是跳过hook地址的字节数，用法与常规hook差不多，只是UserHook已经封装过了，我们基本只要实现好自定义函数就可以直接hook了，用法：`p.hook(addr, UserHook(user_func=hook_func, length=n))`。</font></br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>所以这题的思路就是：</font></br>
+
+- hook从命令行取我们输入的相关指令，修改为取出符号变量；
+- explore至flag判断的地址；
+- eval得到flag；
+- 重复以上直到获得所有flag。
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>还有一点要提一下可能有人会看不懂，那就是`sm.run(n=4)`，这条代码，先来看看run的官方文档：</font></br>
+
+> `run`(*stash='active'*, *n=None*, *until=None*, ***kwargs*)
+>
+> Run until the SimulationManager has reached a completed state, according to the current exploration techniques. If no exploration techniques that define a completion state are being used, run until there is nothing left to run.
+>
+> | Parameters:  | **stash** – Operate on this stash<br />**n** – Step at most this many times<br />**until** – If provided, should be a function that takes a SimulationManager and returns True or False. Stepping will terminate when it is True. |
+> | :----------- | ------------------------------------------------------------ |
+> | Returns:     | The simulation manager, for chaining.                        |
+> | Return type: | [SimulationManager](https://angr.io/api-doc/angr.html#angr.sim_manager.SimulationManager) |
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>意思就是根据目前设置的探索方法一直运行直到simulation_manager到达了一个完整的状态，比如这题就会一直run直到hook地址处以及hook返回处，hook了两次，所以run(n=4)后正好在第二次hook的结束地址处，然后只要运行到flag比较处设置条件约束就能计算正确的输入了。</font></br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size=2>解释完了，接下来就直接放脚本了：</font></br>
+
+```python
+# This challenge is super big, and it's impossible to solve with IDA alone.
+# However, we are sure that most of the code is just garbage - you can't have
+# a 100-point challenge with that much non-garbage code. Therefore the idea is
+# to use GDB along with hardware breakpoints to find out where each byte is
+# verified, and then run that single part of code inside angr to solve the
+# password.
+
+from angr.procedures.stubs.UserHook import UserHook
+import angr
+
+def prepare_state(state, known_passwords):
+    state = state.copy()
+    password = [ ]
+    for i in range(0, len(known_passwords) + 1):
+        password.append(state.solver.BVS('password_%d' % i, 8))
+        state.memory.store(0xd0000000 + i, password[-1])
+
+    for i, char in enumerate(known_passwords):
+        state.add_constraints(password[i] == ord(char))
+    state.memory.store(0x6a3b7c, state.solver.BVV(0, 32))
+    state.memory.store(0x6a3b80, state.solver.BVV(0, 32))
+
+    state.regs.rbp = 0xffffffff00000000
+    state.memory.store(state.regs.rbp-0x148, state.solver.BVV(0xd0000100, 64), endness=state.arch.memory_endness)
+    state.memory.store(state.regs.rbp-0x140, state.solver.BVV(0xd0000100, 64), endness=state.arch.memory_endness)
+
+    return state, password
+
+#
+# A bunch of hooks so that I don't have to take care of the following code snippet:
+# .text:0000000000457294                 mov     r8, [rbp+var_150]
+# .text:000000000045729B                 mov     r8, [r8]
+# .text:000000000045729E                 mov     r8, [r8+8]
+#
+# I can definitely set it up easily with angr, but I was too lazy - which is proved to be
+# a mistake soon after...
+
+def hook_rsi(state):
+    state.regs.rsi = 0xd0000000
+
+def hook_r8(state):
+    state.regs.r8 = 0xd0000000
+
+def hook_rdi(state):
+    state.regs.rdi = 0xd0000000
+
+# Calculate the next byte of the password
+def calc_one_byte(p, known_passwords, hook_func, start_addr, load_addr1, load_addr2, cmp_flag_reg, cmp_addr):
+    byte_pos = len(known_passwords)
+
+    p.hook(load_addr1, UserHook(user_func=hook_func, length=14))
+    p.hook(load_addr2, UserHook(user_func=hook_func, length=14))
+    state = p.factory.blank_state(addr=start_addr)
+    state, password = prepare_state(state, known_passwords)
+    sm = p.factory.simulation_manager(state)
+    sm.run(n=4)
+    sm.step(size=cmp_addr - load_addr2)
+
+    s0 = sm.active[0].copy()
+    s0.add_constraints(getattr(s0.regs, cmp_flag_reg) == 0x1)
+    candidates = s0.solver.eval_upto(password[byte_pos], 256)
+    # assert len(candidates) == 1
+
+    return chr(candidates[0])
+
+def main():
+    p = angr.Project("counter", load_options={'auto_load_libs': False})
+
+    # I got the first letter from gdb and IDA...
+    # First letter is 'S'. I found it out at 0x43d2c6
+    known_passwords = [ 'S' ]
+
+    # Let's figure out the second letter
+
+    # Get the second char
+    c = calc_one_byte(p, known_passwords, hook_rsi, 0x43e099, 0x43e0a8, 0x43e10a, "r11", 0x43e175)
+    # Second char: chr(116) == 't'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x43ee79, 0x43ee8c, 0x43eed3, "rbx", 0x43ef38)
+    # Third char: chr(52) == '4'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x43fd06, 0x43fd17, 0x43fd6e, "r11", 0x43fde5)
+    # Fourth char: chr(116) == 't'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x440a94, 0x440aa7, 0x440b0a, "rbx", 0x440b74)
+    # Fifth char: chr(49) == '1'
+    known_passwords += [ c ]
+
+    # Why are there so many characters? I was expecting 5 at most...
+
+    c = calc_one_byte(p, known_passwords, hook_rsi, 0x4418e2, 0x4418f1, 0x441942, "r10", 0x441994)
+    # Sixth char: chr(99) == 'c'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x44268e, 0x44269f, 0x4426d2, "rbx", 0x44274e)
+    # Seventh char: chr(95) == '_'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rsi, 0x4433a5, 0x4433b4, 0x4433eb, "r11", 0x443466)
+    # Eighth char: chr(52) == '4'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x444194, 0x4441a5, 0x444208, "r11", 0x444260)
+    # Ninth char: chr(110) == 'n'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x444f51, 0x444f62, 0x444fa9, "r11", 0x445001)
+    # Tenth char: chr(52) == '4'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x445ddc, 0x445ded, 0x445e34, "rbx", 0x445e95)
+    # 11th char: chr(108) == 'l'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x446bfa, 0x446c0d, 0x446c64, "rbx", 0x446cd6)
+    # chr(121) == 'y'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rsi, 0x4479c4, 0x4479d3, 0x447a0a, "r10", 0x447a7a)
+    # chr(83) == 'S'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x44877f, 0x448792, 0x4487cd, "rbx", 0x44883f)
+    # chr(49) == '1'
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x449513, 0x449524, 0x44957b, "r11", 0x4495ee)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x44a29d, 0x44a2b0, 0x44a2ff, "rbx", 0x44a357)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x44b0e8, 0x44b0f9, 0x44b140, "r11", 0x44b1b3)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rsi, 0x44bded, 0x44bdfc, 0x44be4d, "r10", 0x44bebb)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x44cc4f, 0x44cc60, 0x44ccaf, "r11", 0x44ccfb)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x44d99f, 0x44d9b0, 0x44da07, "r11", 0x44da72)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x44e89a, 0x44e8ab, 0x44e8f4, "r10", 0x44e94a)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x44f67e, 0x44f68f, 0x44f6f2, "r11", 0x44f765)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x4504fe, 0x45050f, 0x450566, "r11", 0x4505bf)
+    known_passwords += [ c ]
+
+    # So many letters!!!!!!!!
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x4511fe, 0x451211, 0x451268, "r14", 0x4512cd)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x4520d7, 0x4520ea, 0x452117, "r11", 0x45216f)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rsi, 0x452e82, 0x452e91, 0x452ed5, "r11", 0x452f50)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rsi, 0x453d28, 0x453d3a, 0x453d71, "r11", 0x453de6)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x454a39, 0x454a4c, 0x454a95, "r11", 0x454ae7)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x4557f9, 0x45580a, 0x455853, "r11", 0x4558c8)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_rdi, 0x45660a, 0x45661b, 0x456648, "r11", 0x4566a3)
+    known_passwords += [ c ]
+
+    c = calc_one_byte(p, known_passwords, hook_r8, 0x457281, 0x457294, 0x4572cf, "rbx", 0x457314)
+    known_passwords += [ c ]
+
+    # The last one must be '4'...
+    known_passwords += [ '4' ]
+    password = "".join(known_passwords)
+    print("Flag: EKO{%s}" % password)
+
+    return password
+
+def test():
+    assert main() == 'St4t1c_4n4lyS1s_randomstring1234'
+
+if __name__ == "__main__":
+    main()
 ```
 
