@@ -27,10 +27,14 @@
 > 绕过程序中的anti-debug或者anti-run
 - [求解arm](https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%B1%82%E8%A7%A3arm)
 > 遇到arm架构的ELF程序如何求解
+- [求解C++](https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%B1%82%E8%A7%A3C%2B%2B)
+> angr只实现了简单的C函数，那么遇到C++怎么办呢
 - [文件输入](https://github.com/fangdada/learning-angr/tree/master/ctf/%E6%96%87%E4%BB%B6%E8%BE%93%E5%85%A5)
 > 使用文件作为输入的求解题也不少
 - [hook函数](https://github.com/fangdada/learning-angr/tree/master/ctf/hook%E5%87%BD%E6%95%B0)
 > 利用一个简单的二进制炸弹学习angr如何hook函数
+- [外部调用函数](https://github.com/fangdada/learning-angr/tree/master/ctf/%E5%A4%96%E9%83%A8%E8%B0%83%E7%94%A8%E5%87%BD%E6%95%B0)
+> 使用angr直接调用文件内部函数
 
 - ...
 
